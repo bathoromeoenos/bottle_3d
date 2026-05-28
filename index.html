@@ -3,20 +3,74 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bottle 3D Configurator</title>
-  <style>
-    body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; }
-    #controls {
-      position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 10px; z-index: 10;
-    }
-    button {
-      padding: 10px 18px; border: none; border-radius: 8px;
-      background: #222; color: white; cursor: pointer; font-weight: bold;
-    }
-    button:hover { background: #444; }
+  <title>3D Bottle Configurator</title>
+  <style>body { 
+  margin:0; 
+  overflow:hidden; 
+  background:#111; 
+  color:white; 
+  font-family:sans-serif; 
+}
+#ui { 
+  position:absolute; 
+  top:20px; 
+  left:20px; 
+  z-index:10; 
+  display:flex; 
+  gap:8px;
+}
+button { 
+  width:32px; 
+  height:32px; 
+  border:none; 
+  border-radius:50%; 
+  cursor:pointer; 
+  border:2px solid rgba(255,255,255,0.2);
+  transition: transform 0.2s;
+}
+button:hover { transform: scale(1.1); }
+#label {
+  position:absolute;
+  top:20px;
+  right:20px;
+  background:rgba(0,0,0,0.5);
+  padding:8px 14px;
+  border-radius:12px;
+  font-size:14px;
+  backdrop-filter: blur(4px);
+  z-index:10;
+}
+/* MOBILE ONLY */
+@media (max-width: 768px) {
+  #ui {
+    top:auto;
+    bottom:30px;
+    left:50%;
+    transform:translateX(-50%);
+    background:rgba(0,0,0,0.4);
+    padding:10px 15px;
+    border-radius:20px;
+    backdrop-filter: blur(5px);
+    gap:12px;
+  }
+  button {
+    width:44px;
+    height:44px;
+  }
+   #label { top:auto; bottom:90px; right:50%; transform:translateX(50%); font-size:12px; }
+
+}
   </style>
-  <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+</head>
+<body>
+  <div id="ui"><button style="background:red" onclick="setColor(0xff0000, 'Ruby Red')"></button>
+<button style="background:blue" onclick="setColor(0x0000ff, 'Ocean Blue')"></button>
+<button style="background:green" onclick="setColor(0x00ff00, 'Emerald')"></button>
+<button style="background:gold" onclick="setColor(0xffd700, 'Champagne Gold')"></button>
+  </div>
+
+  <div id="label">Classic Clear • Bathoromeo</div>
+
   <script type="importmap">
   {
     "imports": {
@@ -25,15 +79,6 @@
     }
   }
   </script>
-</head>
-<body>
-  <div id="controls">
-    <button data-color="#ff3b30">Red</button>
-    <button data-color="#34c759">Green</button>
-    <button data-color="#0a84ff">Blue</button>
-    <button data-color="#ffffff">White</button>
-    <button data-color="#1c1c1e">Black</button>
-  </div>
 
   <script type="module">
     import * as THREE from 'three';
@@ -44,60 +89,49 @@
     scene.background = new THREE.Color(0x111111);
 
     const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 100);
-    camera.position.set(0, 1, 3);
+    camera.position.set(0, 0.5, 3);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ antialias:true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
     document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotate = true;        // <-- spins automatically
+controls.autoRotateSpeed = 1.5;    // 0.5 = slow, 1.5 = fast
 
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-
-    // Lights
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.2));
+    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+    scene.add(light);
     const dirLight = new THREE.DirectionalLight(0xffffff, 1);
     dirLight.position.set(5,5,5);
     scene.add(dirLight);
 
-    // Load bottle
     let bottleMaterial;
     const loader = new GLTFLoader();
-    loader.load('./bottle.glb', (gltf) => {
+    loader.load('bottle.glb', (gltf) => {
       const model = gltf.scene;
       model.scale.set(1.5, 1.5, 1.5);
-      model.position.y = -8;  /
+      model.position.y = -1.1; // DROPPED DOWN
       scene.add(model);
 
-      // Find the main mesh material to recolor
       model.traverse((child) => {
         if (child.isMesh) {
           bottleMaterial = child.material;
-          bottleMaterial.metalness = 0.1;
-          bottleMaterial.roughness = 0.4;
+          bottleMaterial.metalness = 0.2;
+          bottleMaterial.roughness = 0.3;
         }
       });
-    }, undefined, (err) => {
-      console.error('Failed to load bottle.glb', err);
     });
 
-    // Color buttons
-    document.querySelectorAll('button').forEach(btn => {
-      btn.onclick = () => {
-        if (bottleMaterial) {
-          bottleMaterial.color.set(btn.dataset.color);
-        }
-      };
-    });
-
-    // Resize
+window.setColor = (hex, name) => {
+  if (bottleMaterial) bottleMaterial.color.setHex(hex);
+  document.getElementById('label').innerText = name + ' • Bathoromeo';
+};
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth/window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
 
-    // Animate
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
